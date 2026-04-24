@@ -1,0 +1,22 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.eggs/
+dist/
+build/
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# octavius runtime data — keep journal/trash local
+.octavius/
+
+# node (web/ has its own .gitignore but be safe)
+node_modules/
+.next/
+.vercel/

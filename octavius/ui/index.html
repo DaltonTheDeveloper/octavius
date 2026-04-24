@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Octavius — Host Bus</title>
+<style>
+  :root {
+    --bg: #0e0f12;
+    --panel: #161820;
+    --panel-2: #1d2030;
+    --fg: #e6e8ee;
+    --muted: #8b91a3;
+    --accent: #6ea8ff;
+    --ok: #50c878;
+    --warn: #f5b454;
+    --bad: #ff6b6b;
+    --high: #ff4d4d;
+    --med: #f5b454;
+    --low: #50c878;
+    --border: #262a36;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    min-height: 100vh;
+  }
+  aside {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  main {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; letter-spacing: 0.4px; }
+  h2 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; letter-spacing: 1.2px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .pill.high { background: rgba(255, 77, 77, 0.18); color: var(--high); }
+  .pill.medium { background: rgba(245, 180, 84, 0.18); color: var(--med); }
+  .pill.low { background: rgba(80, 200, 120, 0.18); color: var(--low); }
+  .action {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .action.danger-high { border-color: rgba(255, 77, 77, 0.5); }
+  .action .summary { font-weight: 600; }
+  .action .cap { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .action .detail {
+    background: #0a0b0f;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .row { display: flex; gap: 8px; }
+  button {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--fg);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: filter 0.1s;
+  }
+  button:hover { filter: brightness(1.2); }
+  button.approve { background: rgba(80, 200, 120, 0.16); border-color: rgba(80, 200, 120, 0.5); color: var(--ok); }
+  button.reject  { background: rgba(255, 107, 107, 0.16); border-color: rgba(255, 107, 107, 0.5); color: var(--bad); }
+  button.undo    { background: rgba(110, 168, 255, 0.16); border-color: rgba(110, 168, 255, 0.5); color: var(--accent); }
+  .empty { color: var(--muted); font-style: italic; padding: 12px; text-align: center; }
+  .recent-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .recent-row:last-child { border-bottom: none; }
+  .status-done { color: var(--ok); }
+  .status-failed, .status-rejected, .status-timeout { color: var(--bad); }
+  .status-running { color: var(--warn); }
+  .graph-section { margin-bottom: 18px; }
+  .graph-section table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .graph-section td, .graph-section th { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+  .graph-section th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .header-row { display: flex; justify-content: space-between; align-items: center; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; }
+  .dot.live { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+</style>
+</head>
+<body>
+<aside>
+  <div class="header-row">
+    <h1>Octavius</h1>
+    <span><span id="dot" class="dot"></span><span id="conn" style="color:var(--muted);font-size:11px">connecting</span></span>
+  </div>
+  <div style="color:var(--muted);font-size:12px">Host bus for Claude. Approvals queue here.</div>
+
+  <h2>Pending actions</h2>
+  <div id="pending"></div>
+
+  <h2>Recent</h2>
+  <div id="recent"></div>
+
+  <h2>Journal</h2>
+  <button class="undo" onclick="undo(1)">Undo last action</button>
+  <div id="journal"></div>
+</aside>
+
+<main>
+  <h1 style="font-size:18px">Live machine graph</h1>
+  <div style="color:var(--muted);font-size:12px;margin-bottom:14px">
+    Refreshed continuously. Claude reads this instead of taking screenshots.
+  </div>
+  <div id="graph"></div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function fetchJSON(url, opts) {
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+function renderPending(actions) {
+  if (!actions.length) {
+    $('pending').innerHTML = '<div class="empty">No pending actions.</div>';
+    return;
+  }
+  $('pending').innerHTML = actions.map(a => `
+    <div class="action danger-${a.danger}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="summary">${escapeHtml(a.summary)}</div>
+        <span class="pill ${a.danger}">${a.danger}</span>
+      </div>
+      <div class="cap">${escapeHtml(a.capability)}</div>
+      ${a.detail ? `<div class="detail">${escapeHtml(a.detail)}</div>` : ''}
+      <details><summary style="font-size:11px;color:var(--muted);cursor:pointer">params</summary>
+        <div class="detail">${escapeHtml(JSON.stringify(a.params, null, 2))}</div>
+      </details>
+      <div class="row">
+        <button class="approve" onclick="approve('${a.id}')">Approve</button>
+        <button class="reject" onclick="reject('${a.id}')">Reject</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRecent(actions) {
+  const list = actions.filter(a => a.status !== 'pending').slice(0, 8);
+  if (!list.length) {
+    $('recent').innerHTML = '<div class="empty">Nothing yet.</div>';
+    return;
+  }
+  $('recent').innerHTML = list.map(a => `
+    <div class="recent-row">
+      <span>${escapeHtml(a.summary)}</span>
+      <span class="status-${a.status}">${a.status}</span>
+    </div>
+  `).join('');
+}
+
+function renderJournal(entries) {
+  if (!entries.length) {
+    $('journal').innerHTML = '<div class="empty">Empty.</div>';
+    return;
+  }
+  const list = entries.slice().reverse().slice(0, 8);
+  $('journal').innerHTML = list.map(e => `
+    <div class="recent-row">
+      <span><code>${escapeHtml(e.kind)}</code></span>
+      <span class="${e.status === 'undone' ? 'status-rejected' : 'status-done'}">${e.status}</span>
+    </div>
+  `).join('');
+}
+
+function renderGraph(g) {
+  const procs = (g.processes || []).slice(0, 12);
+  const vols = g.volumes || [];
+  const projs = g.ue5_projects || [];
+  $('graph').innerHTML = `
+    <div class="graph-section">
+      <h2>Volumes</h2>
+      <table>
+        <tr><th>Mount</th><th>Device</th><th>FS</th><th>Free</th><th>Total</th><th>Removable</th></tr>
+        ${vols.map(v => `<tr>
+          <td><code>${escapeHtml(v.mountpoint)}</code></td>
+          <td>${escapeHtml(v.device)}</td>
+          <td>${v.fstype}</td>
+          <td>${v.free_gb} GB</td>
+          <td>${v.total_gb} GB</td>
+          <td>${v.removable ? 'yes' : ''}</td>
+        </tr>`).join('')}
+      </table>
+    </div>
+    <div class="graph-section">
+      <h2>UE5 projects (${projs.length})</h2>
+      <table>
+        <tr><th>Name</th><th>Engine</th><th>Size</th><th>Path</th></tr>
+        ${projs.map(p => `<tr>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${escapeHtml(p.engine_association || '?')}</td>
+          <td>${p.size_mb ?? '?'} MB</td>
+          <td><code>${escapeHtml(p.path)}</code></td>
+        </tr>`).join('')}
+      </table>
+    </div>
+    <div class="graph-section">
+      <h2>UE5 installs</h2>
+      ${(g.ue5_installs || []).map(i => `<div><code>${escapeHtml(i)}</code></div>`).join('') || '<div class="empty">None found.</div>'}
+    </div>
+    <div class="graph-section">
+      <h2>Apps of interest</h2>
+      <div>Chrome: ${g.chrome.running ? '<span style="color:var(--ok)">running</span>' : '<span style="color:var(--muted)">not running</span>'} (${g.chrome.pids.length} procs)</div>
+      <div>Unreal Editor: ${g.unreal_editor.running ? '<span style="color:var(--ok)">running</span>' : '<span style="color:var(--muted)">not running</span>'} (${g.unreal_editor.pids.length} procs)</div>
+    </div>
+    <div class="graph-section">
+      <h2>Top processes by memory</h2>
+      <table>
+        <tr><th>PID</th><th>Name</th><th>Mem (MB)</th><th>CPU%</th></tr>
+        ${procs.map(p => `<tr>
+          <td>${p.pid}</td>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${p.mem_mb}</td>
+          <td>${p.cpu}</td>
+        </tr>`).join('')}
+      </table>
+    </div>
+  `;
+}
+
+async function approve(id) { await fetchJSON('/api/approve/' + id, {method:'POST'}); refreshAll(); }
+async function reject(id) { await fetchJSON('/api/reject/' + id, {method:'POST'}); refreshAll(); }
+async function undo(n) { await fetchJSON('/api/undo?count=' + n, {method:'POST'}); refreshAll(); }
+
+async function refreshAll() {
+  renderPending(await fetchJSON('/api/pending'));
+  renderRecent(await fetchJSON('/api/recent'));
+  renderJournal(await fetchJSON('/api/journal'));
+  renderGraph(await fetchJSON('/api/graph'));
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function connectSSE() {
+  const es = new EventSource('/api/events');
+  es.onopen = () => { $('dot').classList.add('live'); $('conn').textContent = 'live'; };
+  es.onerror = () => { $('dot').classList.remove('live'); $('conn').textContent = 'reconnecting'; };
+  ['proposed','approved','rejected','running','resolved','timeout'].forEach(ev =>
+    es.addEventListener(ev, () => refreshAll())
+  );
+}
+
+refreshAll();
+setInterval(refreshAll, 4000);
+connectSSE();
+</script>
+</body>
+</html>
