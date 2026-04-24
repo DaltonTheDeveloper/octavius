@@ -15,11 +15,11 @@ export default function Nav() {
             OCTAVIUS
           </span>
         </Link>
-        <div className="hidden sm:flex items-center gap-7 text-sm text-ink-100/70">
-          <a href="#how" className="hover:text-white transition">How it works</a>
-          <a href="#capabilities" className="hover:text-white transition">Capabilities</a>
-          <a href="#marketplace" className="hover:text-white transition">Marketplace</a>
-          <a href="#about" className="hover:text-white transition">About</a>
+        <div className="hidden sm:flex items-center gap-6 text-sm text-ink-100/70">
+          <Link href="/marketplace" className="hover:text-white transition">Marketplace</Link>
+          <Link href="/#creators" className="hover:text-white transition">Creators</Link>
+          <Link href="/dashboard" className="hover:text-white transition">Dashboard</Link>
+          <Link href="/#how" className="hover:text-white transition">How it works</Link>
         </div>
         <a
           href="https://github.com/DaltonTheDeveloper/octavius"

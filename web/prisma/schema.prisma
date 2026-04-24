@@ -1,0 +1,135 @@
+// Octavius marketplace schema.
+// SQLite for local dev (DATABASE_URL="file:./dev.db"),
+// Postgres for production (DATABASE_URL="postgres://...").
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String?  @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  handle        String?  @unique
+  bio           String?
+  isCreator     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  accounts      Account[]
+  sessions      Session[]
+  extensions    Extension[]   @relation("CreatorExtensions")
+  licenses      License[]     @relation("UserLicenses")
+  redemptions   Redemption[]  @relation("UserRedemptions")
+}
+
+// ─── Auth.js tables ────────────────────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Extension {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  tagline       String
+  description   String
+  // free | paid
+  tier          String   @default("free")
+  // future: priceCents when paid shipping is enabled
+  priceCents    Int      @default(0)
+  // plasma | rust | chrome — UI accent
+  accent        String   @default("plasma")
+  // creator
+  creatorId     String
+  creator       User     @relation("CreatorExtensions", fields: [creatorId], references: [id])
+  // marketing
+  iconEmoji     String   @default("✦")
+  tags          String   @default("[]") // JSON array as string (SQLite)
+  downloads     Int      @default(0)
+  published     Boolean  @default(true)
+  // social gating — one active code per extension, rotatable
+  membershipCode   String?
+  membershipNote   String? // e.g. "Join my YT channel members to receive this code."
+  createdAt     DateTime @default(now())
+
+  versions      Version[]
+  licenses      License[]
+  redemptions   Redemption[]
+}
+
+model Version {
+  id           String   @id @default(cuid())
+  extensionId  String
+  extension    Extension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+  semver       String
+  changelog    String?
+  manifest     String    // JSON manifest (tool names, entrypoint, permissions)
+  bundleUrl    String?   // signed URL (future: encrypted bundle)
+  sha256       String?
+  createdAt    DateTime  @default(now())
+}
+
+model License {
+  id           String   @id @default(cuid())
+  userId       String
+  extensionId  String
+  user         User      @relation("UserLicenses", fields: [userId], references: [id])
+  extension    Extension @relation(fields: [extensionId], references: [id])
+  // source: "free" | "membership_code" | "purchase"
+  source       String    @default("free")
+  // null = perpetual; Date = expires
+  expiresAt    DateTime?
+  // per-install key (for future encrypted bundles). null in free mode.
+  installKey   String?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, extensionId])
+}
+
+model Redemption {
+  id           String   @id @default(cuid())
+  userId       String
+  extensionId  String
+  code         String
+  user         User      @relation("UserRedemptions", fields: [userId], references: [id])
+  extension    Extension @relation(fields: [extensionId], references: [id])
+  createdAt    DateTime  @default(now())
+}

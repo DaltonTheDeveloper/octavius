@@ -1,7 +1,12 @@
 node_modules
 .next
 out
+.env
 .env*.local
 .DS_Store
 .vercel
 *.log
+prisma/dev.db
+prisma/dev.db-journal
+prisma/migrations
+
