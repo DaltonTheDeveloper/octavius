@@ -49,6 +49,32 @@ def create_app() -> FastAPI:
     async def api_journal(limit: int = 30) -> list[dict]:
         return journal_mod.list_recent(limit=limit)
 
+    @app.post("/api/propose")
+    async def api_propose(payload: dict) -> dict:
+        """Mirror of the MCP propose_action tool — useful for HTTP testing.
+
+        propose() spawns the background runner internally, so we just poll
+        for terminal status when the caller wants to wait.
+        """
+        from dataclasses import asdict
+        wait = payload.pop("wait", True)
+        action = await bus.propose(
+            capability=payload["capability"],
+            summary=payload["summary"],
+            params=payload.get("params", {}),
+            detail=payload.get("detail", ""),
+            danger=payload.get("danger", "medium"),
+        )
+        if not wait:
+            return asdict(action)
+        # poll for terminal status
+        for _ in range(600):
+            current = bus.get(action.id)
+            if current and current.status in ("done", "failed", "rejected", "timeout"):
+                return asdict(current)
+            await asyncio.sleep(0.1)
+        return asdict(bus.get(action.id))
+
     @app.post("/api/approve/{action_id}")
     async def api_approve(action_id: str) -> dict:
         try:

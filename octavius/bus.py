@@ -67,7 +67,16 @@ class Bus:
             self._pending[action.id] = action
             self._approval_events[action.id] = asyncio.Event()
         await self._broadcast({"type": "proposed", "action": asdict(action)})
+        # Spawn the wait-and-run loop so approval always triggers execution
+        # even when the proposer didn't await.
+        asyncio.create_task(self._background_wait_and_run(action.id))
         return action
+
+    async def _background_wait_and_run(self, action_id: str) -> None:
+        try:
+            await self.wait_and_run(action_id)
+        except Exception:
+            pass
 
     async def approve(self, action_id: str) -> PendingAction:
         async with self._lock:
