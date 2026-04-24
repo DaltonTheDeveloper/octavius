@@ -37,6 +37,10 @@ def create_app() -> FastAPI:
     async def api_capabilities() -> list[str]:
         return bus.capabilities()
 
+    @app.get("/api/heartbeat")
+    async def api_heartbeat() -> dict:
+        return bus.heartbeat()
+
     @app.get("/api/pending")
     async def api_pending() -> list[dict]:
         return bus.list_pending()

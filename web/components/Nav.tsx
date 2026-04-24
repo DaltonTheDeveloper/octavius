@@ -16,6 +16,7 @@ export default function Nav() {
           </span>
         </Link>
         <div className="hidden sm:flex items-center gap-6 text-sm text-ink-100/70">
+          <Link href="/#download" className="text-plasma-300 hover:text-white transition font-semibold">Download</Link>
           <Link href="/marketplace" className="hover:text-white transition">Marketplace</Link>
           <Link href="/#creators" className="hover:text-white transition">Creators</Link>
           <Link href="/dashboard" className="hover:text-white transition">Dashboard</Link>

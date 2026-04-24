@@ -8,6 +8,9 @@ from .volume import register as register_volume
 from .epic import register as register_epic
 from .legendary import register as register_legendary
 from .ui import register as register_ui
+from .binary import register as register_binary
+from .vision import register as register_vision
+from .. import jobs as jobs_mod
 
 
 def register_all(bus) -> None:
@@ -21,3 +24,6 @@ def register_all(bus) -> None:
     register_epic(bus)
     register_legendary(bus)
     register_ui(bus)
+    register_binary(bus)
+    register_vision(bus)
+    jobs_mod.register(bus)

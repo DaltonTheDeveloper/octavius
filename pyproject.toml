@@ -11,10 +11,17 @@ dependencies = [
     "pydantic>=2.6",
     "httpx>=0.27",
     "sse-starlette>=2.0",
+    "pyobjc-framework-Quartz>=10.0",
+    "pillow>=10.0",
+    "rumps>=0.4",
 ]
 
 [project.scripts]
 octavius-bus = "octavius.daemon:main"
+octavius-menubar = "octavius.desktop_app:main"
+
+[project.optional-dependencies]
+dist = ["py2app>=0.28"]
 
 [build-system]
 requires = ["hatchling"]
