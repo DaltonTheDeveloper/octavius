@@ -3,6 +3,9 @@ from .filesystem import register as register_fs
 from .ue5 import register as register_ue5
 from .chrome import register as register_chrome
 from .app import register as register_app
+from .discover import register as register_discover
+from .volume import register as register_volume
+from .epic import register as register_epic
 
 
 def register_all(bus) -> None:
@@ -11,3 +14,6 @@ def register_all(bus) -> None:
     register_ue5(bus)
     register_chrome(bus)
     register_app(bus)
+    register_discover(bus)
+    register_volume(bus)
+    register_epic(bus)

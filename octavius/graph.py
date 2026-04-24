@@ -88,6 +88,34 @@ def _scan_processes() -> list[Process]:
     return out
 
 
+def _is_real_external(device: str, mountpoint: str) -> bool:
+    """Use diskutil to determine if this is a real ejectable external drive
+    (USB/Thunderbolt/SD) and NOT a mounted DMG or image."""
+    try:
+        result = subprocess.run(
+            ["diskutil", "info", "-plist", device],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        if result.returncode != 0:
+            return False
+        import plistlib
+        info = plistlib.loads(result.stdout.encode())
+        # Real externals are ejectable AND not from a disk image
+        if info.get("VirtualOrPhysical") == "Virtual":
+            return False  # filevault, disk images, etc.
+        if info.get("DeviceNode", "").startswith("/dev/disk") and info.get("Ejectable"):
+            # Further filter: exclude internal SSDs that happen to be ejectable
+            protocol = info.get("BusProtocol") or info.get("Protocol") or ""
+            if protocol in ("USB", "Thunderbolt", "FireWire", "SD", "SATA"):
+                # SATA internal drives are also "ejectable" — use RemovableMedia too
+                return bool(info.get("RemovableMedia")) or protocol in ("USB", "Thunderbolt", "FireWire", "SD")
+        return False
+    except Exception:
+        return False
+
+
 def _scan_volumes() -> list[Volume]:
     out = []
     for part in psutil.disk_partitions(all=False):
@@ -95,7 +123,7 @@ def _scan_volumes() -> list[Volume]:
             usage = psutil.disk_usage(part.mountpoint)
         except (PermissionError, OSError):
             continue
-        removable = "removable" in part.opts or part.mountpoint.startswith("/Volumes/")
+        removable = _is_real_external(part.device, part.mountpoint)
         out.append(
             Volume(
                 mountpoint=part.mountpoint,
