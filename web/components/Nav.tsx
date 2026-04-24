@@ -22,7 +22,7 @@ export default function Nav() {
           <a href="#about" className="hover:text-white transition">About</a>
         </div>
         <a
-          href="https://github.com/"
+          href="https://github.com/DaltonTheDeveloper/octavius"
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-2 text-sm rounded-lg px-3 py-1.5 border border-plasma-500/30 hover:border-plasma-400 hover:bg-plasma-500/10 transition"

@@ -53,7 +53,7 @@ export default function Hero() {
               See how it works <ArrowRight size={16} className="group-hover:translate-x-1 transition" />
             </a>
             <a
-              href="https://github.com/"
+              href="https://github.com/DaltonTheDeveloper/octavius"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-plasma-500/40 bg-ink-900/60 hover:border-plasma-400 hover:bg-plasma-500/10 transition"

@@ -13,7 +13,7 @@ export default function Footer() {
         </div>
         <div className="flex items-center gap-5">
           <a
-            href="https://github.com/"
+            href="https://github.com/DaltonTheDeveloper/octavius"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 hover:text-white transition"
