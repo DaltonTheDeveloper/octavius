@@ -5,7 +5,8 @@ Stages run in order, each consuming the previous stage's typed artifact:
     market research -> game design -> engineering -> UI/UX -> QA -> marketing
 
 The result is written to disk as a Rojo project (opens in Studio) with a
-``forge/`` folder holding every artifact (report, GDD, QA, launch plan).
+``forge/`` folder holding every artifact. A final self-review distills lessons
+into persistent memory so the *next* run is better than this one.
 """
 
 from __future__ import annotations
@@ -20,10 +21,12 @@ from .agents import (
     MarketingAgent,
     MarketResearchAgent,
     QAAgent,
+    ReviewerAgent,
     UIUXAgent,
 )
 from .config import OUTPUT_ROOT
 from .llm import LLM
+from .memory import Lesson, Memory
 from .models import (
     GameConcept,
     GameDesignDocument,
@@ -31,6 +34,7 @@ from .models import (
     LaunchPlan,
     MarketReport,
     QAReport,
+    ReviewResult,
 )
 from .roblox import scaffold_project
 
@@ -48,24 +52,47 @@ class RunResult:
     files: list[GeneratedFile]
     qa: QAReport
     launch: LaunchPlan
+    review: ReviewResult | None = None
+    lessons_added: int = 0
 
 
 def _noop(_msg: str) -> None:  # default logger
     pass
 
 
-class Pipeline:
-    """Wires the agents together over a single shared LLM client."""
+def artifacts_blob(
+    market: MarketReport, gdd: GameDesignDocument, qa: QAReport, launch: LaunchPlan
+) -> str:
+    """Compact text bundle of a run's artifacts for the reviewer to read."""
+    return (
+        f"MARKET REPORT:\n{market.model_dump_json(indent=2)}\n\n"
+        f"GAME DESIGN:\n{gdd.model_dump_json(indent=2)}\n\n"
+        f"QA REPORT (summary/issues/verdict):\n"
+        f"summary: {qa.summary}\nissues: {qa.issues}\nverdict: {qa.verdict}\n\n"
+        f"LAUNCH PLAN:\n{launch.model_dump_json(indent=2)}"
+    )
 
-    def __init__(self, llm: LLM | None = None, *, log: Logger = _noop) -> None:
+
+class Pipeline:
+    """Wires the agents together over a shared LLM client and shared memory."""
+
+    def __init__(
+        self,
+        llm: LLM | None = None,
+        memory: Memory | None = None,
+        *,
+        log: Logger = _noop,
+    ) -> None:
         self.llm = llm or LLM()
+        self.memory = memory if memory is not None else Memory()
         self.log = log
-        self.market = MarketResearchAgent(self.llm)
-        self.design = GameDesignAgent(self.llm)
-        self.engineer = LuauEngineerAgent(self.llm)
-        self.ui = UIUXAgent(self.llm)
-        self.qa = QAAgent(self.llm)
-        self.marketing = MarketingAgent(self.llm)
+        self.market = MarketResearchAgent(self.llm, self.memory)
+        self.design = GameDesignAgent(self.llm, self.memory)
+        self.engineer = LuauEngineerAgent(self.llm, self.memory)
+        self.ui = UIUXAgent(self.llm, self.memory)
+        self.qa = QAAgent(self.llm, self.memory)
+        self.marketing = MarketingAgent(self.llm, self.memory)
+        self.reviewer = ReviewerAgent(self.llm, self.memory)
 
     def run(
         self,
@@ -73,6 +100,7 @@ class Pipeline:
         *,
         concept_index: int | None = None,
         dest: Path = OUTPUT_ROOT,
+        review: bool = True,
     ) -> RunResult:
         self.log("[1/6] Market research — finding a concept that can grow for free...")
         market = self.market.run(brief)
@@ -105,9 +133,8 @@ class Pipeline:
         self.log("Scaffolding Rojo project...")
         project_dir = scaffold_project(gdd.title, gdd.elevator_pitch, all_files, dest)
         self._write_artifacts(project_dir, market, gdd, qa, launch)
-        self.log(f"Done -> {project_dir}")
 
-        return RunResult(
+        result = RunResult(
             project_dir=project_dir,
             concept=concept,
             market=market,
@@ -116,6 +143,25 @@ class Pipeline:
             qa=qa,
             launch=launch,
         )
+
+        if review:
+            self.log("Self-review — learning lessons for next time...")
+            try:
+                review_result = self.reviewer.run(artifacts_blob(market, gdd, qa, launch))
+                added = self.memory.add_many(
+                    [Lesson(scope=lesson.scope, text=lesson.text, source="review") for lesson in review_result.lessons]
+                )
+                result.review = review_result
+                result.lessons_added = added
+                (project_dir / "forge" / "review.json").write_text(
+                    review_result.model_dump_json(indent=2), encoding="utf-8"
+                )
+                self.log(f"      -> score {review_result.score}/10, {added} new lessons learned")
+            except Exception as exc:  # a failed review must not lose the game
+                self.log(f"      -> review skipped ({exc})")
+
+        self.log(f"Done -> {project_dir}")
+        return result
 
     # ------------------------------------------------------------------ helpers
     @staticmethod
@@ -162,4 +208,4 @@ def _launch_markdown(p: LaunchPlan) -> str:
     )
 
 
-__all__ = ["Pipeline", "RunResult"]
+__all__ = ["Pipeline", "RunResult", "artifacts_blob"]

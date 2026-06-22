@@ -6,6 +6,7 @@ from .luau_engineer import LuauEngineerAgent
 from .market_research import MarketResearchAgent
 from .marketing import MarketingAgent
 from .qa import QAAgent
+from .reviewer import ReviewerAgent
 from .ui_ux import UIUXAgent
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "UIUXAgent",
     "QAAgent",
     "MarketingAgent",
+    "ReviewerAgent",
 ]

@@ -1,8 +1,9 @@
 """Base class shared by every specialist agent.
 
-An agent is a role-specific system prompt plus a knowledge topic. It delegates
-the actual model call to the shared :class:`~robloxforge.llm.LLM` facade and
-automatically prepends the relevant knowledge-base context.
+An agent is a role-specific system prompt plus a knowledge topic. Its system
+prompt is assembled from three layers: the persona, the relevant slice of the
+bundled knowledge base, and the **lessons learned** from past runs (memory) for
+this role — so every generation benefits from prior reviews and feedback.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from pydantic import BaseModel
 from ..codegen import PROTOCOL, parse_files
 from ..knowledge import context_for
 from ..llm import LLM
+from ..memory import Memory
 from ..models import GeneratedFile
 
 T = TypeVar("T", bound=BaseModel)
@@ -24,22 +26,30 @@ class Agent:
 
     #: Short human-readable name, used in CLI output.
     name: str = "agent"
+    #: Memory scope for lessons learned (see ``robloxforge.memory.ROLE_SCOPES``).
+    role: str = "global"
     #: Knowledge topic to inject (see ``robloxforge.knowledge.TOPICS``).
     topic: str = ""
     #: The persona / instructions for this role.
     system_prompt: str = "You are a helpful assistant."
 
-    def __init__(self, llm: LLM) -> None:
+    def __init__(self, llm: LLM, memory: Memory | None = None) -> None:
         self.llm = llm
+        self.memory = memory
 
-    def _system(self) -> str:
+    def _system(self, *, genre: str | None = None) -> str:
+        parts = [self.system_prompt]
         ctx = context_for(self.topic)
-        return f"{self.system_prompt}\n\n{ctx}" if ctx else self.system_prompt
+        if ctx:
+            parts.append(ctx)
+        if self.memory:
+            lessons = self.memory.context_for(self.role, genre=genre)
+            if lessons:
+                parts.append(lessons)
+        return "\n\n".join(parts)
 
-    def ask_text(self, prompt: str, *, max_tokens: int = 32_000, effort: str | None = None) -> str:
-        return self.llm.generate(
-            system=self._system(), prompt=prompt, max_tokens=max_tokens, effort=effort
-        )
+    def ask_text(self, prompt: str, *, max_tokens: int = 32_000, genre: str | None = None) -> str:
+        return self.llm.generate(system=self._system(genre=genre), prompt=prompt, max_tokens=max_tokens)
 
     def ask_model(
         self,
@@ -47,19 +57,18 @@ class Agent:
         model_cls: type[T],
         *,
         max_tokens: int = 16_000,
-        effort: str | None = None,
+        genre: str | None = None,
     ) -> T:
         return self.llm.parse(
-            system=self._system(),
+            system=self._system(genre=genre),
             prompt=prompt,
             model_cls=model_cls,
             max_tokens=max_tokens,
-            effort=effort,
         )
 
     def ask_files(
-        self, prompt: str, *, max_tokens: int = 48_000, effort: str | None = None
+        self, prompt: str, *, max_tokens: int = 48_000, genre: str | None = None
     ) -> list[GeneratedFile]:
         """Generate a batch of source files using the delimiter protocol."""
-        text = self.ask_text(f"{prompt}\n\n{PROTOCOL}", max_tokens=max_tokens, effort=effort)
+        text = self.ask_text(f"{prompt}\n\n{PROTOCOL}", max_tokens=max_tokens, genre=genre)
         return parse_files(text)

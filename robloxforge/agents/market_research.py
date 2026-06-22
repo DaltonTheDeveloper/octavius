@@ -21,6 +21,7 @@ not gate fun.\
 
 class MarketResearchAgent(Agent):
     name = "Market Research"
+    role = "market"
     topic = "market"
     system_prompt = _SYSTEM
 

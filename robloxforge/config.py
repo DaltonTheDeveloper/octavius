@@ -11,9 +11,14 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# Where completions come from. "claude-code" drives the local `claude` CLI on
+# your Claude subscription (no API key, no per-token billing) and is the default.
+# "api" uses the Anthropic API (needs ANTHROPIC_API_KEY + the [api] extra).
+DEFAULT_BACKEND = os.environ.get("FORGE_BACKEND", "claude-code")
+
 # The model the whole pipeline runs on. Opus 4.8 is the most capable model for
 # the long-horizon, multi-step reasoning this pipeline does (design -> code ->
-# review). Override with FORGE_MODEL if you want to trade cost for capability.
+# review). Override with FORGE_MODEL (a full id or a CLI alias like "opus").
 DEFAULT_MODEL = os.environ.get("FORGE_MODEL", "claude-opus-4-8")
 
 # Per-agent effort. "high" is the sweet spot for code/design quality; drop to
@@ -27,6 +32,12 @@ OUTPUT_ROOT = Path(os.environ.get("FORGE_OUTPUT", "games")).resolve()
 # grounding context so generated code/strategy reflects real Roblox practice.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_ROOT = REPO_ROOT / "docs"
+
+# Persistent "lessons" memory — how the system improves over time. Reviews and
+# real-world feedback are distilled into lessons stored here and injected into
+# future runs. Kept as a versionable file so improvements accrue and can be
+# committed alongside the code.
+MEMORY_PATH = Path(os.environ.get("FORGE_MEMORY", REPO_ROOT / "memory" / "lessons.jsonl")).resolve()
 
 
 @dataclass(slots=True)

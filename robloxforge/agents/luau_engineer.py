@@ -27,6 +27,7 @@ Write real, working code — no TODO stubs for core systems.\
 
 class LuauEngineerAgent(Agent):
     name = "Luau Engineering"
+    role = "engineering"
     topic = "engineering"
     system_prompt = _SYSTEM
 

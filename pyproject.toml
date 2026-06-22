@@ -5,8 +5,9 @@ description = "An AI pipeline that automates Roblox game development end-to-end:
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+# Core deps are intentionally light: the default backend drives the `claude` CLI,
+# so no Anthropic SDK / API key is needed unless you opt into the `api` backend.
 dependencies = [
-    "anthropic>=0.49",
     "pydantic>=2.6",
     "httpx>=0.27",
     "rich>=13.7",
@@ -14,6 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+api = ["anthropic>=0.49"]
 dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [project.scripts]

@@ -25,6 +25,7 @@ validation helpers). Put specs under shared/__tests__/ or alongside modules as \
 
 class QAAgent(Agent):
     name = "QA"
+    role = "qa"
     topic = "qa"
     system_prompt = _REVIEW_SYSTEM
 

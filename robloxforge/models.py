@@ -67,6 +67,27 @@ class QAReport(BaseModel):
     verdict: str = Field(description="ship / fix-first, with the rationale.")
 
 
+class ReviewLesson(BaseModel):
+    """A transferable lesson the reviewer wants future runs to remember."""
+
+    scope: str = Field(
+        description="Which role this improves: market, design, engineering, ui, "
+        "qa, marketing, or global."
+    )
+    text: str = Field(description="Actionable guidance, phrased imperatively.")
+
+
+class ReviewResult(BaseModel):
+    """A critique of a generated game plus lessons to fold back into memory."""
+
+    score: int = Field(description="Overall hit-potential score, 1-10.")
+    strengths: list[str] = Field(description="What this game does well.")
+    weaknesses: list[str] = Field(description="Concrete risks to retention/growth/quality.")
+    lessons: list[ReviewLesson] = Field(
+        description="Transferable lessons to improve FUTURE generations."
+    )
+
+
 class LaunchPlan(BaseModel):
     """Output of the marketing / user-acquisition stage."""
 

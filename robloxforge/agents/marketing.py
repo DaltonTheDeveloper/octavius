@@ -23,6 +23,7 @@ giveaway-baiting (it is penalized). Be specific and actionable.\
 
 class MarketingAgent(Agent):
     name = "Marketing"
+    role = "marketing"
     topic = "growth"
     system_prompt = _SYSTEM
 

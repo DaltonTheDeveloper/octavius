@@ -23,6 +23,7 @@ that mounts them. `Name.luau` = ModuleScript, `Name.client.luau` = LocalScript.\
 
 class UIUXAgent(Agent):
     name = "UI/UX"
+    role = "ui"
     topic = "engineering"
     system_prompt = _SYSTEM
 

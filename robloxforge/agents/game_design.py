@@ -18,6 +18,7 @@ everything else to the content roadmap.\
 
 class GameDesignAgent(Agent):
     name = "Game Design"
+    role = "design"
     topic = "design"
     system_prompt = _SYSTEM
 
