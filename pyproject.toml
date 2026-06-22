@@ -1,31 +1,31 @@
 [project]
-name = "octavius"
+name = "robloxforge"
 version = "0.1.0"
-description = "Host bus for Claude — graph, journal, approvals, capabilities."
-requires-python = ">=3.11"
+description = "An AI pipeline that automates Roblox game development end-to-end: market research, game design, Luau engineering, UI/UX, QA, and free user acquisition."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
 dependencies = [
-    "mcp>=1.2.0",
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.27",
-    "psutil>=5.9",
+    "anthropic>=0.49",
     "pydantic>=2.6",
     "httpx>=0.27",
-    "sse-starlette>=2.0",
-    "pyobjc-framework-Quartz>=10.0",
-    "pillow>=10.0",
-    "rumps>=0.4",
+    "rich>=13.7",
+    "typer>=0.12",
 ]
 
-[project.scripts]
-octavius-bus = "octavius.daemon:main"
-octavius-menubar = "octavius.desktop_app:main"
-
 [project.optional-dependencies]
-dist = ["py2app>=0.28"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+forge = "robloxforge.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["octavius"]
+packages = ["robloxforge"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

@@ -1,23 +1,27 @@
-# python
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
 .eggs/
-dist/
 build/
+dist/
+.venv/
+venv/
+.env
+.env.*
 
-# editor / OS
+# RobloxForge output
+games/
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# Tooling
+.luau-analyze/
+sourcemap.json
+
+# OS / editor
 .DS_Store
 .idea/
 .vscode/
-*.swp
-
-# octavius runtime data — keep journal/trash local
-.octavius/
-
-# node (web/ has its own .gitignore but be safe)
-node_modules/
-.next/
-.vercel/
-.vercel

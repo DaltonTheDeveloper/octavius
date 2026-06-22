@@ -1,97 +1,120 @@
-# Octavius
+# 🎮 RobloxForge
 
-Local host bus that gives Claude (via Claude Code, no API key) **structured access to your whole machine** — not screenshots, not a sandbox. Every risky action is queued for one-click approval in a sidebar UI, and every committed action is reversible from a journal.
+**An AI pipeline that automates Roblox game development end-to-end** — market
+research, game design, Luau engineering, UI/UX, QA, and a free-growth launch plan
+— and hands you a ready-to-open [Rojo](https://rojo.space) project.
 
-## Why this exists
+You give it an idea (or nothing). It researches what's trending, picks a concept
+that can grow organically and monetize cleanly, writes a game design document,
+generates server-authoritative Luau and a mobile-first UI, reviews the code for
+exploits and data loss, writes tests, and produces a launch playbook for getting
+your first players **for free**.
 
-Two ruts everyone else is in:
-- **Pixel puppets** (computer-use): universal but slow and brittle.
-- **Per-app MCP servers**: reliable but siloed — Claude can't reason across apps.
+It is built on the [Claude API](https://docs.claude.com) (Opus 4.8) and grounded
+in a researched [knowledge base](docs/) of how Roblox games are actually built,
+shipped, and grown.
 
-Octavius is the third path: a **graph of your machine** + a **capability registry** + a **journal** with one-key undo + an **approval UI**. Claude reasons across apps, you stay in control.
+> **Honest framing:** no tool can *guarantee* a hit — Roblox earnings are
+> extremely top-heavy (the median DevEx creator earns ~$1,575/yr). What
+> RobloxForge does is automate the whole craft and bias every stage toward the
+> two things that actually drive success: **per-user retention** and
+> **organic discovery**. The rest is iteration, taste, and live-ops — which it
+> also plans for you.
 
-## What's in the box
+## How it works
 
 ```
-octavius/
-├── daemon.py         # one process, port 7777
-├── graph.py          # processes, volumes, UE5 projects, Chrome state
-├── journal.py        # append-only with inverse ops + undo
-├── bus.py            # pending-action queue + SSE
-├── mcp_server.py     # MCP tools exposed to Claude Code
-├── web.py            # FastAPI: /mcp + / + /api/*
-├── ui/index.html     # sidebar with approve/reject buttons
-└── capabilities/
-    ├── shell.py      # shell.run
-    ├── filesystem.py # fs.move, fs.copy, fs.write, fs.delete (all journaled)
-    ├── ue5.py        # ue5.move_project, ue5.read_uproject, ue5.launch_editor
-    └── chrome.py     # chrome.open_url, chrome.list_tabs, chrome.run_js
+brief ─▶ Market Research ─▶ Game Design ─▶ Engineering ─▶ UI/UX ─▶ QA ─▶ Marketing
+          (06,05)            (04,05)         (01,04)        (01)     (qa)   (07,08)
+                                                                              │
+                                                                              ▼
+                                                         a Rojo project + forge/ artifacts
 ```
+
+Each stage is a specialist [agent](robloxforge/agents) with a role-specific
+prompt, fed the relevant [`docs/`](docs/) as grounding context. Every stage's
+output is a typed artifact consumed by the next. The result is written to disk as
+a Rojo project (`src/shared`, `src/server`, `src/client`) plus a `forge/` folder
+holding the market report, GDD, QA report, and launch plan.
 
 ## Install
 
 ```sh
-./scripts/install.sh
-source .venv/bin/activate
-octavius-bus
+pip install -e .            # or: pip install -e ".[dev]"
+export ANTHROPIC_API_KEY=sk-...   # https://console.anthropic.com
 ```
 
-Open the sidebar UI at http://127.0.0.1:7777/
-
-In another terminal:
+## Use
 
 ```sh
-claude mcp add --transport http octavius http://127.0.0.1:7777/mcp
+# Generate a complete game from an idea (or a vague direction)
+forge new "a chill pet-collecting game with a steal-and-defend twist"
+
+# Just see ranked, buildable concepts for an idea
+forge research "horror co-op for mobile"
+
+# Check your setup (model, keys, toolchain)
+forge info
+
+# Publish a built place to a live experience via Open Cloud (optional)
+forge publish MyGame.rbxlx
 ```
 
-## What Claude can do now
+`forge new` prints where the project landed. Open it in Studio:
 
-In Claude Code, try:
-
-> Show me the live machine graph and tell me what UE5 projects you can see.
-
-> I want to move my UE5 project `MyGame` to my external drive at `/Volumes/Backup`. Propose the action — I'll approve it in the UI.
-
-> Open `https://docs.unrealengine.com` in a new Chrome tab, then list all my open tabs.
-
-Every action that mutates state shows up as a button in the sidebar. Click **Approve** and Claude continues; click **Reject** and Claude gets told no.
-
-## Undo
-
-Every committed action records an inverse. Click **Undo last action** in the sidebar, or ask Claude:
-
-> Undo the last 3 actions.
-
-Filesystem ops have real inverses; shell/browse ops are forward-only and skipped.
-
-## Adding a capability
-
-A capability is just an async function `(params: dict) -> dict` registered with the bus. To add one for, say, Blender:
-
-```python
-# octavius/capabilities/blender.py
-from .. import journal
-
-async def _open_file(params):
-    # ... do the thing
-    journal.record(kind="blender.open", forward=params, inverse=None)
-    return {"opened": params["path"]}
-
-def register(bus):
-    bus.register("blender.open_file", _open_file)
+```sh
+cd games/<your-game>
+rokit install          # installs Rojo, Selene, StyLua (pinned in rokit.toml)
+rojo serve             # connect from the Rojo Studio plugin
 ```
 
-Then add `register_blender(bus)` in `capabilities/__init__.py`. Claude immediately sees it via `list_capabilities`.
+The free-growth launch playbook is at `games/<your-game>/forge/LAUNCH.md`.
 
-## What this is NOT (yet)
+## What's in the box
 
-- A marketplace. That's the next layer — package capabilities as installable bundles, sign them, host an index.
-- A recorder. The "intent-replay" idea (record your interactions, generalize them) lives in a follow-up branch.
-- Cross-platform. macOS-first; Chrome capability uses AppleScript. Windows/Linux equivalents are straightforward swaps.
+```
+robloxforge/
+├── cli.py            # `forge` CLI (new / research / publish / info)
+├── pipeline.py       # orchestrates the 6-stage pipeline
+├── llm.py            # Claude API wrapper (adaptive thinking, streaming, JSON)
+├── models.py         # typed artifacts (GDD, MarketReport, LaunchPlan, ...)
+├── knowledge.py      # injects docs/ into each agent
+├── codegen.py        # file-delimiter protocol for multi-file code generation
+├── agents/           # market research, design, engineering, UI/UX, QA, marketing
+└── roblox/
+    ├── rojo.py       # scaffolds a ready-to-open Rojo project
+    ├── opencloud.py  # Open Cloud client (publish, datastore, messaging, assets)
+    └── templates.py  # default.project.json, rokit/wally/selene/.luaurc
+docs/                 # the researched Roblox knowledge base (also great reading)
+```
 
-## Roadmap
+## Configuration
 
-1. **Recorder** — capture user input traces and turn them into reusable capabilities (the marketplace primitive).
-2. **Capability bundles** — `octavius install <name>` pulling from a registry, with manifests + signatures.
-3. **Cross-app capabilities** — abstract verbs like `move_with_dependencies` that dispatch to whichever app provider can handle them.
-4. **Voice/Raycast clients** — host bus is just a socket; nothing prevents other front-ends sharing the same graph + journal.
+| Env var | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | Required. The Claude API key the pipeline runs on. |
+| `FORGE_MODEL` | Model id (default `claude-opus-4-8`). |
+| `FORGE_EFFORT` | `low`/`medium`/`high`/`max` (default `high`). |
+| `FORGE_OUTPUT` | Output directory (default `games/`). |
+| `ROBLOX_API_KEY` | Optional. [Open Cloud](docs/03-open-cloud-api.md) key for publishing. |
+| `ROBLOX_UNIVERSE_ID` / `ROBLOX_PLACE_ID` | Optional. Target experience to publish to. |
+| `ROBLOX_CREATOR_ID` / `ROBLOX_CREATOR_TYPE` | Optional. For asset uploads. |
+
+## The knowledge base
+
+The [`docs/`](docs/) folder is a researched field manual for shipping a hit
+Roblox game (every claim is sourced):
+
+- [00 — Overview](docs/00-overview.md)
+- [01 — Luau, Studio & UI](docs/01-luau-and-studio.md)
+- [02 — Tooling: Rojo, Wally, Selene, StyLua, TestEZ](docs/02-tooling-rojo-wally.md)
+- [03 — Open Cloud API](docs/03-open-cloud-api.md)
+- [04 — Core game systems & anti-exploit](docs/04-game-systems.md)
+- [05 — Market trends & monetization](docs/05-market-and-monetization.md)
+- [06 — The discovery algorithm](docs/06-discovery-algorithm.md) ← the most important one
+- [07 — Free user acquisition](docs/07-user-acquisition.md)
+- [08 — Thumbnails, launch & live-ops](docs/08-thumbnails-and-launch.md)
+
+## License
+
+MIT.
